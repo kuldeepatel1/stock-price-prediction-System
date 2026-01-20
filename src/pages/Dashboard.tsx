@@ -1,6 +1,6 @@
 // src/pages/Dashboard.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, TrendingUp, Calendar, DollarSign } from 'lucide-react';
@@ -22,6 +22,14 @@ const Dashboard: React.FC = () => {
     new Date().getFullYear() + 1
   );
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const chartSectionRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to chart section when a stock is selected
+  useEffect(() => {
+    if (selectedCompany && chartSectionRef.current) {
+      chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedCompany]);
 
   // 1. Fetch companies
   const {
@@ -163,7 +171,7 @@ const Dashboard: React.FC = () => {
 
       {/* Chart & Prediction */}
       {selectedCompany ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div ref={chartSectionRef} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Chart */}
           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border">
             <h3 className="text-lg font-semibold mb-4">

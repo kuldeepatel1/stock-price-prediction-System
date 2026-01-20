@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Header';
 import Home from './pages/Home';
 import SignInPage from './pages/SignInPage';
@@ -9,33 +10,103 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Lazy load the Dashboard
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 
-function App() {
+// Page transition variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    y: 20,
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+  },
+};
+
+// Animated page wrapper component
+const AnimatedPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <motion.div
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={pageVariants}
+      transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1.0] }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+// Custom loading fallback
+const PageLoader: React.FC = () => {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="relative mb-6">
+          <div className="w-20 h-20 border-4 border-primary-100 rounded-full mx-auto"></div>
+          <div className="absolute top-0 left-0 w-20 h-20 border-4 border-primary-600 rounded-full border-t-transparent animate-spin mx-auto"></div>
+        </div>
+        <p className="text-dark-500 font-medium animate-pulse">Loading...</p>
+      </div>
+    </div>
+  );
+};
+
+function App() {
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header />
       <main className="pt-16">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/sign-in" element={<SignInPage />} />
-          <Route path="/sign-up" element={<SignUpPage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Suspense
-                  fallback={
-                    <div className="p-6 text-center text-gray-600">Loading Dashboard...</div>
-                  }
-                >
-                  <Dashboard />
-                </Suspense>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route
+              path="/"
+              element={
+                <AnimatedPage>
+                  <Home />
+                </AnimatedPage>
+              }
+            />
+            <Route
+              path="/sign-in"
+              element={
+                <AnimatedPage>
+                  <SignInPage />
+                </AnimatedPage>
+              }
+            />
+            <Route
+              path="/sign-up"
+              element={
+                <AnimatedPage>
+                  <SignUpPage />
+                </AnimatedPage>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AnimatedPage>
+                      <Dashboard />
+                    </AnimatedPage>
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </AnimatePresence>
       </main>
     </div>
   );
 }
 
 export default App;
+
