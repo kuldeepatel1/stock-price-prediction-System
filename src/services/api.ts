@@ -129,7 +129,7 @@ const generatePrediction = (
  * Fetch the list of top-250 companies
  */
 export const fetchCompanies = (): Promise<Company[]> =>
-  callOrMock('/companies', () => mockCompanies);
+  callOrMock('/api/companies', () => mockCompanies);
 
 /**
  * Fetch 5 years of historical closing prices for `ticker`
@@ -138,7 +138,7 @@ export const fetchHistoricalData = (
   ticker: string
 ): Promise<HistoricalData[]> =>
   callOrMock(
-    `/historical?ticker=${encodeURIComponent(ticker)}`,
+    `/api/historical?ticker=${encodeURIComponent(ticker)}`,
     () => generateHistoricalData(ticker)
   );
 
@@ -150,6 +150,6 @@ export const fetchPrediction = (
   year: number
 ): Promise<Prediction> =>
   callOrMock(
-    `/predict?ticker=${encodeURIComponent(ticker)}&year=${year}`,
+    `/api/predict?ticker=${encodeURIComponent(ticker)}&year=${year}`,
     () => generatePrediction(ticker, year, generateHistoricalData(ticker))
   );

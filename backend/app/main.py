@@ -37,6 +37,7 @@ if os.path.exists(models_dir):
         if filename.endswith(".pkl"):
             try:
                 model_path = os.path.join(models_dir, filename)
+                ticker = filename.replace(".pkl", "")
                 models[ticker] = joblib.load(model_path)
             except Exception as e:
                 print(f"Warning: failed to load model {filename} — {e}")
