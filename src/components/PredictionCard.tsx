@@ -6,14 +6,30 @@ import type { Company, Prediction } from '../types';
 interface PredictionCardProps {
   company: Company;
   year: number;
+  month?: number;
+  day?: number;
   prediction: Prediction | null | undefined;
   isLoading: boolean;
   error: Error | null;
 }
 
+const monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+// Format date to dd-mm-yy
+const formatDateDisplay = (year: number, month?: number, day?: number) => {
+  if (!month || !day) return year.toString();
+  const shortYear = year.toString().slice(-2);
+  return `${day.toString().padStart(2, '0')}-${(month).toString().padStart(2, '0')}-${shortYear}`;
+};
+
 const PredictionCard: React.FC<PredictionCardProps> = ({
   company,
   year,
+  month,
+  day,
   prediction,
   isLoading,
   error
@@ -61,7 +77,9 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           </div>
           <div className="flex items-center space-x-1 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
             <Calendar className="h-4 w-4" />
-            <span className="text-sm font-medium">{year}</span>
+            <span className="text-sm font-medium">
+              {formatDateDisplay(year, month, day)}
+            </span>
           </div>
         </div>
       </div>

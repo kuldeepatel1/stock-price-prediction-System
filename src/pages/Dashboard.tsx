@@ -18,11 +18,124 @@ import type { Company, HistoricalData, Prediction } from '../types';
 const Dashboard: React.FC = () => {
   const { user } = useUser();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(
-    new Date().getFullYear() + 1
-  );
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [showCalendar, setShowCalendar] = useState<boolean>(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const chartSectionRef = useRef<HTMLDivElement>(null);
+
+  // Month names for display
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  // Get tomorrow's date as minimum
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
+
+  // Get max date (3 years from now)
+  const getMaxDate = () => {
+    const maxDate = new Date();
+    maxDate.setFullYear(maxDate.getFullYear() + 3);
+    return maxDate.toISOString().split('T')[0];
+  };
+
+  // Format date to dd-mm-yy
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return 'Select Date';
+    const date = new Date(dateStr + 'T00:00:00');
+    const day = date.getDate();
+    const month = date.getMonth();
+    const year = date.getFullYear();
+    const shortYear = year.toString().slice(-2);
+    return `${day.toString().padStart(2, '0')}-${(month + 1).toString().padStart(2, '0')}-${shortYear}`;
+  };
+
+  // Parse date for API (convert to year, month, day)
+  const parseSelectedDate = () => {
+    if (!selectedDate) return { year: 2026, month: 1, day: 1 };
+    const date = new Date(selectedDate + 'T00:00:00');
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate()
+    };
+  };
+
+  // Generate calendar days for the popup calendar
+  const generateCalendarDays = () => {
+    if (!selectedDate) return [];
+    
+    const currentDate = new Date(selectedDate + 'T00:00:00');
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDay = firstDay.getDay();
+    
+    const days: { date: number; isCurrentMonth: boolean; isToday: boolean; isPast: boolean; isTomorrow: boolean }[] = [];
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    for (let i = 0; i < startingDay; i++) {
+      days.push({ date: 0, isCurrentMonth: false, isToday: false, isPast: false, isTomorrow: false });
+    }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateObj = new Date(year, month, day);
+      const dateStr = dateObj.toISOString().split('T')[0];
+      days.push({
+        date: day,
+        isCurrentMonth: true,
+        isToday: dateStr === today.toISOString().split('T')[0],
+        isPast: dateObj < today,
+        isTomorrow: dateStr === tomorrow.toISOString().split('T')[0]
+      });
+    }
+    
+    return days;
+  };
+
+  // Handle date selection
+  const handleDateSelect = (day: number) => {
+    if (!selectedDate) return;
+    const date = new Date(selectedDate + 'T00:00:00');
+    date.setDate(day);
+    const minDate = new Date(getMinDate());
+    if (date < minDate) return;
+    
+    setSelectedDate(date.toISOString().split('T')[0]);
+    setShowCalendar(false);
+  };
+
+  // Close calendar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setShowCalendar(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Set default date to tomorrow when component mounts
+  useEffect(() => {
+    if (!selectedDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setSelectedDate(tomorrow.toISOString().split('T')[0]);
+    }
+  }, []);
 
   // Scroll to chart section when a stock is selected
   useEffect(() => {
@@ -55,18 +168,21 @@ const Dashboard: React.FC = () => {
     enabled: Boolean(selectedCompany)
   });
 
+  // Parse selected date for API
+  const { year, month, day } = parseSelectedDate();
+
   // 3. Fetch prediction
   const {
     data: prediction,
     isLoading: predLoading,
     error: predError
   } = useQuery<Prediction, Error>({
-    queryKey: ['prediction', selectedCompany?.ticker, selectedYear],
+    queryKey: ['prediction', selectedCompany?.ticker, year, month, day],
     queryFn: () =>
       selectedCompany
-        ? fetchPrediction(selectedCompany.ticker, selectedYear)
+        ? fetchPrediction(selectedCompany.ticker, year, month, day)
         : Promise.resolve(null as any),
-    enabled: Boolean(selectedCompany && selectedYear > 0)
+    enabled: Boolean(selectedCompany && selectedDate)
   });
 
   // Filter companies by search term
@@ -80,11 +196,6 @@ const Dashboard: React.FC = () => {
       );
     });
   }, [companies, searchTerm]);
-
-  // Future 10 years
-  const futureYears = Array.from({ length: 10 }, (_, i) =>
-    new Date().getFullYear() + 1 + i
-  );
 
   if (companiesLoading) {
     return (
@@ -120,9 +231,9 @@ const Dashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border flex items-center">
           <Calendar className="h-8 w-8 text-green-600" />
           <div className="ml-4">
-            <p className="text-sm text-gray-600">Prediction Years</p>
+            <p className="text-sm text-gray-600">Prediction Range</p>
             <p className="text-2xl font-semibold text-gray-900">
-              {new Date().getFullYear() + 1}–{new Date().getFullYear() + 10}
+              Tomorrow - 3 Years
             </p>
           </div>
         </div>
@@ -194,23 +305,74 @@ const Dashboard: React.FC = () => {
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border">
               <h4 className="text-lg font-semibold mb-4">
-                Select Prediction Year
+                Select Prediction Date
               </h4>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                {futureYears.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+              
+              {/* Calendar Picker - Inline Display */}
+              <div className="space-y-4">
+                {/* Native Date Input */}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Select Date</label>
+                  <input
+                    type="date"
+                    min={getMinDate()}
+                    max={getMaxDate()}
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
+                  />
+                </div>
+                
+                {/* Quick Select Buttons */}
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">Quick Select</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        setSelectedDate(tomorrow.toISOString().split('T')[0]);
+                      }}
+                      className="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition"
+                    >
+                      Tomorrow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextWeek = new Date();
+                        nextWeek.setDate(nextWeek.getDate() + 7);
+                        setSelectedDate(nextWeek.toISOString().split('T')[0]);
+                      }}
+                      className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition"
+                    >
+                      +1 Week
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextMonth = new Date();
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        setSelectedDate(nextMonth.toISOString().split('T')[0]);
+                      }}
+                      className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 transition"
+                    >
+                      +1 Month
+                    </button>
+                  </div>
+                </div>
+              
+                <p className="text-sm text-gray-600">
+                  Predicting for: <span className="font-medium text-gray-800">{formatDateDisplay(selectedDate)}</span>
+                </p>
+              </div>
             </div>
             <PredictionCard
               company={selectedCompany}
-              year={selectedYear}
+              year={year}
+              month={month}
+              day={day}
               prediction={prediction}
               isLoading={predLoading}
               error={predError}

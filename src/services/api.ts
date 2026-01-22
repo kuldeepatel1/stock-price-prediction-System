@@ -102,18 +102,28 @@ const generateHistoricalData = (ticker: string): HistoricalData[] => {
 const generatePrediction = (
   ticker: string,
   year: number,
+  month: number,
+  day: number,
   historicalData: HistoricalData[]
 ): Prediction => {
   const lastPrice = historicalData[historicalData.length - 1]?.price || 1000;
-  const yearsFromNow = year - new Date().getFullYear();
+  
+  // Calculate exact days from now to target date
+  const now = new Date();
+  const targetDate = new Date(year, month - 1, day);
+  const daysFromNow = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const tradingDaysFromNow = Math.max(0, Math.floor(daysFromNow * 252 / 365));
+  
   const growthRate = Math.random() * 0.15 + 0.05;
   const volatility = (Math.random() - 0.5) * 0.3;
   const predictedPrice =
-    lastPrice * Math.pow(1 + growthRate, yearsFromNow) * (1 + volatility);
+    lastPrice * Math.pow(1 + growthRate, tradingDaysFromNow / 252) * (1 + volatility);
 
   return {
     ticker,
     year,
+    month,
+    day,
     predictedPrice: Number(predictedPrice.toFixed(2)),
     currentPrice: lastPrice,
     confidence: Math.floor(Math.random() * 30 + 70),
@@ -143,13 +153,15 @@ export const fetchHistoricalData = (
   );
 
 /**
- * Fetch a predicted price for `ticker` in `year`
+ * Fetch a predicted price for `ticker` in `year`, `month`, and `day`
  */
 export const fetchPrediction = (
   ticker: string,
-  year: number
+  year: number,
+  month: number,
+  day: number
 ): Promise<Prediction> =>
   callOrMock(
-    `/api/predict?ticker=${encodeURIComponent(ticker)}&year=${year}`,
-    () => generatePrediction(ticker, year, generateHistoricalData(ticker))
+    `/api/predict?ticker=${encodeURIComponent(ticker)}&year=${year}&month=${month}&day=${day}`,
+    () => generatePrediction(ticker, year, month, day, generateHistoricalData(ticker))
   );

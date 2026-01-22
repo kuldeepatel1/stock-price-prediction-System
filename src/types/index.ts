@@ -11,6 +11,8 @@ export interface HistoricalData {
 export interface Prediction {
   ticker: string;
   year: number;
+  month?: number;
+  day?: number;
   predictedPrice: number;
   currentPrice: number;
   confidence: number;
@@ -22,4 +24,5 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
+  image_url?: string;
 }
