@@ -40,7 +40,8 @@ const Dashboard: React.FC = () => {
   // Get max date (3 years from now)
   const getMaxDate = () => {
     const maxDate = new Date();
-    maxDate.setFullYear(maxDate.getFullYear() + 3);
+    // allow prediction up to 5 years from today
+    maxDate.setFullYear(maxDate.getFullYear() + 5);
     return maxDate.toISOString().split('T')[0];
   };
 
@@ -57,13 +58,38 @@ const Dashboard: React.FC = () => {
 
   // Parse date for API (convert to year, month, day)
   const parseSelectedDate = () => {
-    if (!selectedDate) return { year: 2026, month: 1, day: 1 };
+    if (!selectedDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return {
+        year: tomorrow.getFullYear(),
+        month: tomorrow.getMonth() + 1,
+        day: tomorrow.getDate()
+      };
+    }
     const date = new Date(selectedDate + 'T00:00:00');
     return {
       year: date.getFullYear(),
       month: date.getMonth() + 1,
       day: date.getDate()
     };
+  };
+
+  // Adjust the currently selected date by days/months (cumulative on repeated clicks)
+  const adjustSelectedDate = (addDays = 0, addMonths = 0) => {
+    // Use selectedDate as base if present, otherwise default to tomorrow
+    const base = selectedDate
+      ? new Date(selectedDate + 'T00:00:00')
+      : (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 1);
+          return d;
+        })();
+
+    if (addDays) base.setDate(base.getDate() + addDays);
+    if (addMonths) base.setMonth(base.getMonth() + addMonths);
+
+    setSelectedDate(base.toISOString().split('T')[0]);
   };
 
   // Generate calendar days for the popup calendar
@@ -233,7 +259,7 @@ const Dashboard: React.FC = () => {
           <div className="ml-4">
             <p className="text-sm text-gray-600">Prediction Range</p>
             <p className="text-2xl font-semibold text-gray-900">
-              Tomorrow - 3 Years
+              Tomorrow - 5 Years
             </p>
           </div>
         </div>
@@ -297,6 +323,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <StockChart
                 data={historicalData ?? []}
+                prediction={prediction}
               />
             )}
           </div>
@@ -329,33 +356,21 @@ const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        setSelectedDate(tomorrow.toISOString().split('T')[0]);
-                      }}
+                      onClick={() => adjustSelectedDate(1, 0)}
                       className="px-3 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200 transition"
                     >
                       Tomorrow
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextWeek = new Date();
-                        nextWeek.setDate(nextWeek.getDate() + 7);
-                        setSelectedDate(nextWeek.toISOString().split('T')[0]);
-                      }}
+                      onClick={() => adjustSelectedDate(7, 0)}
                       className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition"
                     >
                       +1 Week
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const nextMonth = new Date();
-                        nextMonth.setMonth(nextMonth.getMonth() + 1);
-                        setSelectedDate(nextMonth.toISOString().split('T')[0]);
-                      }}
+                      onClick={() => adjustSelectedDate(0, 1)}
                       className="px-3 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 transition"
                     >
                       +1 Month
