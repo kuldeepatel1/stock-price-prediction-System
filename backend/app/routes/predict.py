@@ -3,6 +3,12 @@ from datetime import datetime
 import yfinance as yf
 import logging
 import calendar
+import os
+import json
+from pathlib import Path
+import pandas as pd
+import joblib
+from sklearn.ensemble import GradientBoostingRegressor
 
 router = APIRouter()
 
@@ -35,16 +41,33 @@ async def predict_price(
         target_date = datetime(year, month, day)
         now = datetime.now()
 
-        # Calculate days into the future
+        # Calculate days into the future (calendar days)
         days_from_now = (target_date - now).days
         if days_from_now < 0:
             raise HTTPException(status_code=400, detail="Cannot predict for past dates")
 
-        # Convert calendar days to trading days (approximately 252 per year)
-        future_day = int(days_from_now * 252 / 365)
+        # Convert calendar days to trading days (approximation)
+        future_trading_days = int(days_from_now * 252 / 365)
 
-        # Predict future price using the ML model
-        predicted_price = float(model.predict([[future_day]])[0])
+        # Build feature vector consistent with training
+        meta = request.app.state.model_meta.get(ticker, None)
+        if meta is None:
+            # Fallback to legacy behavior if no meta available
+            future_day = future_trading_days
+            predicted_price = float(model.predict([[future_day]])[0])
+        else:
+            # Compute future day index relative to training
+            last_index = int(meta.get('last_day_index', 0))
+            future_index = last_index + future_trading_days
+
+            # derive calendar features for prediction date
+            weekday = target_date.weekday()
+            month = target_date.month
+            day_of_month = target_date.day
+            day_sq = future_index ** 2
+
+            feat = [[future_index, day_sq, weekday, month, day_of_month]]
+            predicted_price = float(model.predict(feat)[0])
 
         # Fetch current price using Yahoo Finance
         data = yf.download(ticker, period="1d", progress=False)
@@ -68,3 +91,66 @@ async def predict_price(
     except Exception as e:
         logging.exception("Prediction failed")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+
+@router.post("/train")
+async def train_single_ticker(request: Request, ticker: str = Query(..., description="Ticker to train, e.g. CADILAHC.NS")):
+    """Train and save a model for a single ticker on demand.
+    This uses the same feature set as the offline trainer.
+    """
+    try:
+        # download historical
+        df = yf.download(ticker, period="5y", interval="1d", progress=False)
+        if df.empty or 'Close' not in df.columns:
+            raise HTTPException(status_code=404, detail=f"No historical data for '{ticker}'")
+
+        df = df.reset_index()[['Date', 'Close']].dropna()
+
+        # feature engineering
+        df['day_index'] = (df.index + 1).astype(int)
+        df['day_sq'] = df['day_index'] ** 2
+        df['weekday'] = pd.to_datetime(df['Date']).dt.weekday
+        df['month'] = pd.to_datetime(df['Date']).dt.month
+        df['day_of_month'] = pd.to_datetime(df['Date']).dt.day
+
+        X = df[['day_index', 'day_sq', 'weekday', 'month', 'day_of_month']]
+        y = df['Close']
+
+        split_idx = int(len(X) * 0.8)
+        X_train, y_train = X.iloc[:split_idx], y.iloc[:split_idx]
+
+        model = GradientBoostingRegressor(n_estimators=100, learning_rate=0.05, max_depth=4)
+        model.fit(X_train, y_train)
+
+        # save model and meta
+        models_dir = Path(__file__).resolve().parent.parent / 'models'
+        models_dir.mkdir(parents=True, exist_ok=True)
+        model_file = models_dir / f"{ticker}.pkl"
+        joblib.dump(model, str(model_file))
+
+        meta = {
+            'last_day_index': int(X['day_index'].iloc[-1]),
+            'last_date': str(df.iloc[-1]['Date'].date())
+        }
+        meta_file = models_dir / f"{ticker}_meta.json"
+        with open(meta_file, 'w') as mf:
+            json.dump(meta, mf)
+
+        # update in-memory app state so subsequent prediction calls work immediately
+        try:
+            request.app.state.models[ticker] = model
+            request.app.state.model_meta[ticker] = meta
+        except Exception:
+            # if app state not available, ignore — files are saved and server restart will load them
+            pass
+
+        return {
+            'status': 'ok',
+            'model_file': str(model_file),
+            'meta_file': str(meta_file)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.exception('Training failed')
+        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")

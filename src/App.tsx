@@ -9,6 +9,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Lazy load the Dashboard
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Favorites = lazy(() => import('./pages/Favorites'));
+const Compare = lazy(() => import('./pages/Compare'));
+const Recognize = lazy(() => import('./pages/Recognize'));
+const Personalize = lazy(() => import('./pages/Personalize'));
 
 // Page transition variants
 const pageVariants = {
@@ -96,6 +100,54 @@ function App() {
                   <Suspense fallback={<PageLoader />}>
                     <AnimatedPage>
                       <Dashboard />
+                    </AnimatedPage>
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/favorites"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AnimatedPage>
+                      <Favorites />
+                    </AnimatedPage>
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/compare"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AnimatedPage>
+                      <Compare />
+                    </AnimatedPage>
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/recognize"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AnimatedPage>
+                      <Recognize />
+                    </AnimatedPage>
+                  </Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/personalize"
+              element={
+                <ProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AnimatedPage>
+                      <Personalize />
                     </AnimatedPage>
                   </Suspense>
                 </ProtectedRoute>

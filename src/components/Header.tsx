@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
-import { TrendingUp, LogIn, UserPlus, Menu, X } from 'lucide-react';
+import { TrendingUp, LogIn, UserPlus, Menu, X, Star } from 'lucide-react';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -54,6 +54,31 @@ const Header: React.FC = () => {
                   className="px-4 py-2 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/compare"
+                  className="px-4 py-2 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Compare
+                </Link>
+                <Link
+                  to="/recognize"
+                  className="px-4 py-2 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Top Predictions
+                </Link>
+                <Link
+                  to="/personalize"
+                  className="px-4 py-2 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Personalize
+                </Link>
+                <Link
+                  to="/favorites"
+                  className="px-4 py-2 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium flex items-center space-x-2"
+                >
+                  <Star className="h-4 w-4" />
+                  <span>Favorites</span>
                 </Link>
                 <div className="flex items-center space-x-3 ml-2 pl-4 border-l border-dark-200">
                   <div className="text-right hidden lg:block">
@@ -116,6 +141,34 @@ const Header: React.FC = () => {
                   className="block px-4 py-3 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/compare"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-4 py-3 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Compare
+                </Link>
+                <Link
+                  to="/recognize"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-4 py-3 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Top Predictions
+                </Link>
+                <Link
+                  to="/personalize"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-4 py-3 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Personalize
+                </Link>
+                <Link
+                  to="/favorites"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-4 py-3 text-dark-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all duration-200 font-medium"
+                >
+                  Favorites
                 </Link>
                 <div className="px-4 py-3 text-dark-600">
                   <span className="text-sm">Welcome, </span>

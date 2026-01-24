@@ -32,6 +32,7 @@ app.add_middleware(
 # --------------------------------------
 models_dir = os.path.join(os.path.dirname(__file__), "models")
 models = {}
+model_meta = {}
 if os.path.exists(models_dir):
     for filename in os.listdir(models_dir):
         if filename.endswith(".pkl"):
@@ -39,6 +40,14 @@ if os.path.exists(models_dir):
                 model_path = os.path.join(models_dir, filename)
                 ticker = filename.replace(".pkl", "")
                 models[ticker] = joblib.load(model_path)
+                # try load accompanying metadata
+                meta_file = os.path.join(models_dir, f"{ticker}_meta.json")
+                if os.path.exists(meta_file):
+                    try:
+                        with open(meta_file, 'r') as mf:
+                            model_meta[ticker] = json.load(mf)
+                    except Exception:
+                        print(f"Warning: failed to load meta for {ticker}")
             except Exception as e:
                 print(f"Warning: failed to load model {filename} — {e}")
 else:
@@ -47,6 +56,7 @@ else:
 
 # Save to app state
 app.state.models = models
+app.state.model_meta = model_meta
 
 
 # --------------------------------------

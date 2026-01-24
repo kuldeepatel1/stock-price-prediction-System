@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { Search, TrendingUp, Calendar, DollarSign, Star, StarOff } from 'lucide-react';
 
 import StockChart from '../components/StockChart';
 import PredictionCard from '../components/PredictionCard';
@@ -19,6 +19,7 @@ const Dashboard: React.FC = () => {
   const { user } = useUser();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -154,6 +155,17 @@ const Dashboard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Load favorites from localStorage
+  useEffect(() => {
+    const raw = localStorage.getItem('favorites');
+    try {
+      const arr = raw ? JSON.parse(raw) : [];
+      setFavorites(Array.isArray(arr) ? arr : []);
+    } catch (e) {
+      setFavorites([]);
+    }
+  }, []);
+
   // Set default date to tomorrow when component mounts
   useEffect(() => {
     if (!selectedDate) {
@@ -169,6 +181,24 @@ const Dashboard: React.FC = () => {
       chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [selectedCompany]);
+
+  const toggleFavorite = (ticker?: string) => {
+    const t = ticker ?? selectedCompany?.ticker;
+    if (!t) return;
+    try {
+      const raw = localStorage.getItem('favorites');
+      const arr = raw ? JSON.parse(raw) : [];
+      const set = new Set(Array.isArray(arr) ? arr : []);
+      if (set.has(t)) set.delete(t);
+      else set.add(t);
+      const newArr = Array.from(set);
+      localStorage.setItem('favorites', JSON.stringify(newArr));
+      setFavorites(newArr);
+    } catch (e) {
+      localStorage.setItem('favorites', JSON.stringify([t]));
+      setFavorites([t]);
+    }
+  };
 
   // 1. Fetch companies
   const {
@@ -311,9 +341,25 @@ const Dashboard: React.FC = () => {
         <div ref={chartSectionRef} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Chart */}
           <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border">
-            <h3 className="text-lg font-semibold mb-4">
-              {selectedCompany.name} ({selectedCompany.ticker})
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                {selectedCompany.name} ({selectedCompany.ticker})
+              </h3>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => toggleFavorite()}
+                  aria-label="Toggle favorite"
+                  className="p-2 rounded-lg hover:bg-gray-100 transition"
+                >
+                  {selectedCompany && favorites.includes(selectedCompany.ticker) ? (
+                    <Star className="h-6 w-6 text-yellow-500" />
+                  ) : (
+                    <StarOff className="h-6 w-6 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
             {histLoading ? (
               <div className="h-64 flex items-center justify-center">
                 <LoadingSpinner />
